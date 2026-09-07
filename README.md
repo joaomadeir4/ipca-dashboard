@@ -107,27 +107,27 @@ uvicorn main:app --reload
 
 Acesse `http://localhost:8000`.
 
-## Dashboard (`static/index.html`)
+## Frontend: dois arquivos, duas finalidades
 
-Layout construído seguindo princípios de storytelling com dados (Cole Nussbaumer): hierarquia visual clara, cor usada só para guiar o olho, sem "chartjunk".
+O projeto tem dois HTMLs em `static/`, com propósitos diferentes — não são "versões" um do outro.
 
-Ordem das seções:
-1. **KPIs**: variação mensal atual, acumulado 12m, repasse (lag 1m), margem absorvida (lag 1m)
-2. **Narrativa do período**: seletor De/Até e botão que chama `POST /narrativa` e exibe o texto gerado
-3. **Acumulado em 12 meses**: gráfico de linha com área
-4. **Variação mensal**: gráfico de barras (azul = positivo, vermelho = negativo), com linha de base no zero
-5. **Custo x repasse**: gráfico de barras mostrando quando o custo superou o repasse (vermelho) ou o repasse superou o custo (roxo), com linha tracejada no zero
-6. **Sazonalidade**: heatmap de 12 células (jan-dez) com intensidade de azul proporcional à média histórica de variação mensal
+### `index.html` — dashboard operacional
 
-## Versão estática (`static/snapshot_artifact.html`)
+Consome o backend FastAPI local (`main.py`):
+- `GET /dados` busca dados em tempo real do BigQuery
+- `POST /narrativa` gera narrativa via API Anthropic sob demanda, para qualquer intervalo selecionado
+- Requer o servidor rodando e as credenciais configuradas (`.env`)
+- Uso: desenvolvimento local e deploy no Render
 
-Publicada como [Claude Artifact](https://claude.ai/code/artifacts) para compartilhamento sem precisar rodar o backend. O projeto original usa IA generativa em tempo real via API da Anthropic para gerar narrativas sob demanda, para qualquer intervalo de meses (ver `POST /narrativa` acima). Por questão de custo de API, essa versão pública é um exemplo estático que simula esse comportamento:
+Layout segue storytelling com dados (Cole Nussbaumer): KPIs no topo, depois narrativa do período, acumulado 12m, variação mensal, custo x repasse e sazonalidade — hierarquia visual clara, cor só pra guiar o olho, sem "chartjunk".
 
-- **Dados congelados**: snapshot da tabela BigQuery embutido diretamente no HTML, sem fetch.
-- **Insights mensais pré-gerados**: `gerar_narrativas.py` roda uma vez, gera um insight curto por mês via API (mesmo modelo, `claude-sonnet-5`) e salva em `static/narrativas.json`, embutido no HTML.
-- **Consolidação real via `sample`**: ao selecionar um intervalo e clicar em "Gerar narrativa", a capability `sample` do runtime de Artifacts recebe os insights mensais daquele intervalo e produz, ao vivo, um parágrafo coerente cobrindo o período inteiro — a consolidação acontece a cada clique, não é texto fixo. Isso evita expor uma chave de API no HTML público, e o uso é debitado da conta claude.ai de quem está vendo a página, não do dono do projeto.
+### `snapshot_artifact.html` — demonstração pública
 
-**Limitação conhecida**: artifacts que declaram a capability `sample` não podem ser compartilhados publicamente pela plataforma Claude — o compartilhamento fica restrito à organização/workspace de quem publicou. Essa versão não serve, hoje, para um link público de portfólio; o repositório e o dashboard local continuam sendo a referência para demonstrar o projeto a terceiros.
+Arquivo standalone, sem dependência de backend:
+- Dados embutidos como `const DATA = [...]` — snapshot de jul/2026
+- Insights mensais pré-gerados via API Anthropic, embutidos como `const NARRATIVAS = {...}` (175 entradas, uma por mês, geradas por `gerar_narrativas.py`)
+- Ao selecionar um período, o JS filtra os insights do intervalo e monta um resumo localmente (tendência, mês de maior pressão, comportamento da margem, mais um insight real do período) — tudo calculado no navegador, sem chamada de API
+- Finalidade: página estática para portfólio pessoal, demonstrando o comportamento do projeto sem expor credenciais nem depender do backend
 
 ## Notas de arquitetura
 
