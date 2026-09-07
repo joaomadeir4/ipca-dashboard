@@ -128,6 +128,16 @@ Publicada como [Claude Artifact](https://claude.ai/code/artifacts) para comparti
 
 Um Artifact estático não pode chamar a API da Anthropic com uma chave própria sem expô-la publicamente no HTML. `sample` resolve isso mantendo geração real sem esse risco.
 
+**Limitação conhecida**: artifacts que declaram a capability `sample` não podem ser compartilhados publicamente pela plataforma Claude — o compartilhamento fica restrito à organização/workspace de quem publicou. Isso significa que essa versão não serve, hoje, para um link público de portfólio; o repositório e o dashboard local continuam sendo a referência para demonstrar o projeto a terceiros.
+
+## Sobre a versão estática
+
+O projeto original usa IA generativa em tempo real via API da Anthropic para gerar narrativas analíticas sob demanda, para qualquer intervalo de meses selecionado (ver `POST /narrativa` acima). Por questão de custo de API, a versão pública disponibilizada como Artifact é um exemplo estático que simula esse comportamento:
+
+- As narrativas mensais foram pré-geradas via API (`gerar_narrativas.py`) e salvas em `static/narrativas.json`, usando o mesmo modelo (`claude-sonnet-5`), um insight curto por mês.
+- O comportamento de consolidação de período é real: ao selecionar um intervalo e clicar em "Gerar narrativa", o `sample()` do runtime do Artifact recebe os insights mensais pré-gerados daquele intervalo e produz, ao vivo, um parágrafo coerente cobrindo o período inteiro. Não é um texto fixo por período — a consolidação acontece a cada clique.
+- O código completo da versão com API própria (geração livre, sem pré-processamento) está disponível neste repositório, em `main.py`.
+
 ## Notas de arquitetura
 
 - O client do BigQuery usa `location="southamerica-east1"` porque o dataset (`projeto_inflacao`) está nessa região. Omitir isso causa erro 404 "dataset not found".

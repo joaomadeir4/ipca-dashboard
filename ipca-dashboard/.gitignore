@@ -1,4 +1,5 @@
 *.json
+!static/narrativas.json
 __pycache__/
 *.pyc
 .venv/

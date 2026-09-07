@@ -72,19 +72,20 @@ Detalhes completos em `etl_ingestao_inflacao.ipynb`. Resumo:
 
 ## Setup
 
-Os comandos abaixo assumem que você está dentro de `ipca-dashboard/`.
-
 ### 1. Credenciais BigQuery
 
-Crie uma service account no Console GCP com os papéis **BigQuery Data Viewer** e **BigQuery Job User**, baixe a chave JSON e coloque na raiz do projeto (`ipca-dashboard/`). O `main.py` carrega o arquivo pelo nome; ajuste `CREDENTIALS_PATH` se o nome do arquivo for diferente.
+Crie uma service account no Console GCP com os papéis **BigQuery Data Viewer** e **BigQuery Job User** e baixe a chave JSON. O `main.py` lê essa credencial de uma variável de ambiente, não de um arquivo no disco.
 
-### 2. Chave da Anthropic
+### 2. Variáveis de ambiente
 
-Crie um arquivo `.env` na raiz do projeto:
+Crie um arquivo `.env` na raiz do projeto (`ipca-dashboard/`):
 
 ```
 ANTHROPIC_API_KEY=sua-chave-aqui
+GOOGLE_CREDENTIALS_JSON={"type":"service_account","project_id":"...","private_key":"...", ...}
 ```
+
+`GOOGLE_CREDENTIALS_JSON` é o conteúdo inteiro do arquivo JSON da service account, em uma única linha. No deploy (ex: Render), configure essa mesma variável no painel do serviço — nunca commite o arquivo JSON.
 
 ### 3. Instalar dependências
 
@@ -126,6 +127,16 @@ Publicada como [Claude Artifact](https://claude.ai/code/artifacts) para comparti
 - **Narrativa via `sample`**: em vez de chamar um backend com API key própria, usa a capability `sample` do runtime de Artifacts, que gera texto com Claude diretamente no navegador sem expor credenciais. O uso é debitado da conta claude.ai de quem está vendo a página, não do dono do projeto
 
 Um Artifact estático não pode chamar a API da Anthropic com uma chave própria sem expô-la publicamente no HTML. `sample` resolve isso mantendo geração real sem esse risco.
+
+**Limitação conhecida**: artifacts que declaram a capability `sample` não podem ser compartilhados publicamente pela plataforma Claude — o compartilhamento fica restrito à organização/workspace de quem publicou. Isso significa que essa versão não serve, hoje, para um link público de portfólio; o repositório e o dashboard local continuam sendo a referência para demonstrar o projeto a terceiros.
+
+## Sobre a versão estática
+
+O projeto original usa IA generativa em tempo real via API da Anthropic para gerar narrativas analíticas sob demanda, para qualquer intervalo de meses selecionado (ver `POST /narrativa` acima). Por questão de custo de API, a versão pública disponibilizada como Artifact é um exemplo estático que simula esse comportamento:
+
+- As narrativas mensais foram pré-geradas via API (`gerar_narrativas.py`) e salvas em `static/narrativas.json`, usando o mesmo modelo (`claude-sonnet-5`), um insight curto por mês.
+- O comportamento de consolidação de período é real: ao selecionar um intervalo e clicar em "Gerar narrativa", o `sample()` do runtime do Artifact recebe os insights mensais pré-gerados daquele intervalo e produz, ao vivo, um parágrafo coerente cobrindo o período inteiro. Não é um texto fixo por período — a consolidação acontece a cada clique.
+- O código completo da versão com API própria (geração livre, sem pré-processamento) está disponível neste repositório, em `main.py`.
 
 ## Notas de arquitetura
 
