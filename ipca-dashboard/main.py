@@ -1,4 +1,5 @@
 import os
+import json
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -11,11 +12,11 @@ import anthropic
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
-CREDENTIALS_PATH = os.path.join(BASE_DIR, "port-joaomadeira-26b409bf6bc5.json")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 
 app = FastAPI()
-credentials = service_account.Credentials.from_service_account_file(CREDENTIALS_PATH)
+credentials_info = json.loads(os.environ.get("GOOGLE_CREDENTIALS_JSON"))
+credentials = service_account.Credentials.from_service_account_info(credentials_info)
 client = bigquery.Client(credentials=credentials, project=credentials.project_id, location="southamerica-east1")
 
 TABLE = "port-joaomadeira.projeto_inflacao.ipca_alimentacao_fora_domicilio"

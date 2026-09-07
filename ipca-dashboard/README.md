@@ -74,15 +74,18 @@ Detalhes completos em `../etl_ingestao_inflacao.ipynb`. Resumo:
 
 ### 1. Credenciais BigQuery
 
-Crie uma service account no Console GCP com os papéis **BigQuery Data Viewer** e **BigQuery Job User**, baixe a chave JSON e coloque na raiz do projeto. O `main.py` carrega o arquivo pelo nome; ajuste `CREDENTIALS_PATH` se o nome do arquivo for diferente.
+Crie uma service account no Console GCP com os papéis **BigQuery Data Viewer** e **BigQuery Job User** e baixe a chave JSON. O `main.py` lê essa credencial de uma variável de ambiente, não de um arquivo no disco.
 
-### 2. Chave da Anthropic
+### 2. Variáveis de ambiente
 
-Crie um arquivo `.env` na raiz do projeto:
+Crie um arquivo `.env` na raiz do projeto (`ipca-dashboard/`):
 
 ```
 ANTHROPIC_API_KEY=sua-chave-aqui
+GOOGLE_CREDENTIALS_JSON={"type":"service_account","project_id":"...","private_key":"...", ...}
 ```
+
+`GOOGLE_CREDENTIALS_JSON` é o conteúdo inteiro do arquivo JSON da service account, em uma única linha. No deploy (ex: Render), configure essa mesma variável no painel do serviço — nunca commite o arquivo JSON.
 
 ### 3. Instalar dependências
 
