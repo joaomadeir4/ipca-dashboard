@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>IPCA Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #0f0f0f;
+    color: #e8e8e8;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 32px 40px 60px;
+    max-width: 1200px;
+  }
+  h1 {
+    font-size: 1.4rem;
+    margin: 0 0 4px 0;
+    font-weight: 600;
+  }
+  .subtitle {
+    color: #8a8a8a;
+    font-size: 0.9rem;
+    margin: 0 0 32px 0;
+  }
+  .status { color: #999; font-size: 0.9rem; }
+
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0;
+    padding-bottom: 24px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid #232323;
+  }
+  .kpi { padding-right: 24px; }
+  .kpi-label {
+    font-size: 0.75rem;
+    color: #8a8a8a;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .kpi-value { font-size: 1.7rem; font-weight: 600; line-height: 1; }
+  .kpi-value.pos { color: #4da3ff; }
+  .kpi-value.neg { color: #ff5c5c; }
+  .kpi-value.neutral { color: #e8e8e8; }
+
+  section { margin-bottom: 44px; }
+  .section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #f0f0f0;
+    margin: 0 0 2px 0;
+  }
+  .section-insight {
+    font-size: 0.85rem;
+    color: #8a8a8a;
+    margin: 0 0 16px 0;
+  }
+  .legend-inline {
+    font-size: 0.78rem;
+    color: #8a8a8a;
+    margin-bottom: 10px;
+  }
+  .legend-inline span { margin-right: 16px; white-space: nowrap; }
+  .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+
+  .narrativa-hero {
+    background: linear-gradient(135deg, #17222e, #161616);
+    border: 1px solid #2a3d52;
+    border-radius: 12px;
+    padding: 24px 28px;
+  }
+  .narrativa-hero .section-title {
+    font-size: 1.15rem;
+  }
+  .narrativa-hero #narrativa-texto {
+    border-left-color: #4da3ff;
+    background: rgba(0,0,0,0.25);
+  }
+
+  .narrativa-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .field label {
+    display: block;
+    font-size: 0.75rem;
+    color: #8a8a8a;
+    margin-bottom: 6px;
+  }
+  .field select {
+    background: #1a1a1a;
+    color: #e8e8e8;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 0.85rem;
+    font-family: inherit;
+  }
+  #btn-narrativa {
+    background: #4da3ff;
+    color: #0f0f0f;
+    border: none;
+    border-radius: 6px;
+    padding: 9px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  #btn-narrativa:disabled { opacity: 0.5; cursor: default; }
+  #narrativa-texto {
+    background: #161616;
+    border-left: 3px solid #4da3ff;
+    border-radius: 4px;
+    padding: 16px 18px;
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: #ddd;
+    min-height: 24px;
+  }
+  #narrativa-texto.placeholder { color: #6b6b6b; font-style: italic; }
+
+  .hero .chart-wrap { height: 320px; }
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+  }
+  .chart-wrap { position: relative; height: 240px; }
+
+  #heatmap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  @media (max-width: 760px) {
+    .split { grid-template-columns: 1fr; gap: 32px; }
+  }
+</style>
+</head>
+<body>
+
+<h1>IPCA Dashboard</h1>
+<p class="subtitle">Alimentação fora do domicílio — variação, repasse e margem absorvida</p>
+<div id="status" class="status">carregando dados...</div>
+
+<div id="dashboard" style="display:none;">
+
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-label">Variação mensal atual</div>
+      <div class="kpi-value" id="kpi-variacao"></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Acumulado 12 meses</div>
+      <div class="kpi-value" id="kpi-acum12"></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Repasse (defasado 1m)</div>
+      <div class="kpi-value" id="kpi-repasse"></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Margem absorvida (defasado 1m)</div>
+      <div class="kpi-value" id="kpi-margem"></div>
+    </div>
+  </div>
+
+  <section class="narrativa-hero">
+    <div class="section-title">Narrativa do período</div>
+    <p class="section-insight">Selecione um intervalo e gere uma análise em texto sobre o comportamento da inflação</p>
+    <div class="narrativa-controls">
+      <div class="field">
+        <label for="sel-inicio">De</label>
+        <select id="sel-inicio"></select>
+      </div>
+      <div class="field">
+        <label for="sel-fim">Até</label>
+        <select id="sel-fim"></select>
+      </div>
+      <button id="btn-narrativa">Gerar narrativa</button>
+    </div>
+    <div id="narrativa-texto" class="placeholder">A narrativa gerada aparecerá aqui.</div>
+  </section>
+
+  <section class="hero">
+    <div class="section-title">Acumulado em 12 meses</div>
+    <p class="section-insight" id="insight-acum12"></p>
+    <div class="chart-wrap"><canvas id="chart-acum12"></canvas></div>
+  </section>
+
+  <section>
+    <div class="section-title">Variação mensal</div>
+    <p class="section-insight" id="insight-variacao"></p>
+    <div class="chart-wrap"><canvas id="chart-variacao"></canvas></div>
+  </section>
+
+  <section>
+    <div class="section-title">Custo x repasse: quem está absorvendo a margem</div>
+    <p class="section-insight" id="insight-margem"></p>
+    <div class="legend-inline">
+      <span><span class="dot" style="background:#ff5c5c"></span>custo acima do repasse</span>
+      <span><span class="dot" style="background:#a06bff"></span>repasse acima do custo</span>
+    </div>
+    <div class="chart-wrap"><canvas id="chart-margem"></canvas></div>
+  </section>
+
+  <section>
+    <div class="section-title">Sazonalidade</div>
+    <p class="section-insight">Média histórica de variação mensal, mês a mês</p>
+    <div id="heatmap"></div>
+  </section>
+
+</div>
+
+<script>
+const BLUE = "#4da3ff";
+const RED = "#ff5c5c";
+const PURPLE = "#a06bff";
+const GRAY = "#6b6b6b";
+const GRID = "rgba(255,255,255,0.06)";
+
+const fmtPct = v => v === null || v === undefined ? "--" : v.toFixed(2) + "%";
+const monthNames = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+function makeZeroLinePlugin({ color = "#555", dash = [] } = {}) {
+  return {
+    id: "zeroLine",
+    afterDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      const y = scales.y.getPixelForValue(0);
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.setLineDash(dash);
+      ctx.beginPath();
+      ctx.moveTo(chartArea.left, y);
+      ctx.lineTo(chartArea.right, y);
+      ctx.stroke();
+      ctx.restore();
+    }
+  };
+}
+
+function classFor(v) {
+  if (v === null || v === undefined) return "neutral";
+  return v >= 0 ? "pos" : "neg";
+}
+
+async function main() {
+  const res = await fetch("/dados");
+  const raw = await res.json();
+  console.log("dados recebidos:", raw);
+
+  const data = raw
+    .filter(d => d.periodo)
+    .sort((a, b) => a.periodo.localeCompare(b.periodo));
+
+  if (data.length === 0) {
+    document.getElementById("status").textContent = "nenhum dado encontrado";
+    return;
+  }
+
+  document.getElementById("status").style.display = "none";
+  document.getElementById("dashboard").style.display = "block";
+
+  const last = data[data.length - 1];
+
+  setKpi("kpi-variacao", last.variacao_mensal);
+  setKpi("kpi-acum12", last.variacao_acum_12m);
+  setKpi("kpi-repasse", last.repasse_lag1);
+  setKpi("kpi-margem", last.margem_absorvida_lag1);
+
+  const labels = data.map(d => d.periodo);
+
+  Chart.defaults.color = GRAY;
+  Chart.defaults.font.family = "system-ui, -apple-system, 'Segoe UI', sans-serif";
+
+  renderInsights(data, last);
+  setupNarrativa(data);
+
+  new Chart(document.getElementById("chart-acum12"), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        data: data.map(d => d.variacao_acum_12m),
+        borderColor: BLUE,
+        backgroundColor: "rgba(77,163,255,0.12)",
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        spanGaps: true,
+        borderWidth: 2
+      }]
+    },
+    options: baseOptions({ hideXGrid: true })
+  });
+
+  new Chart(document.getElementById("chart-margem"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        data: data.map(d => d.margem_absorvida_lag1),
+        backgroundColor: data.map(d => {
+          if (d.margem_absorvida_lag1 === null || d.repasse_lag1 === null) return "#333";
+          return d.margem_absorvida_lag1 > d.repasse_lag1 ? RED : PURPLE;
+        }),
+        borderRadius: 2
+      }]
+    },
+    plugins: [makeZeroLinePlugin({ color: "#555", dash: [4, 4] })],
+    options: baseOptions({ hideXGrid: true })
+  });
+
+  new Chart(document.getElementById("chart-variacao"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        data: data.map(d => d.variacao_mensal),
+        backgroundColor: data.map(d => d.variacao_mensal >= 0 ? "#2a78d6" : "#ff4444"),
+        borderRadius: 2
+      }]
+    },
+    plugins: [makeZeroLinePlugin({ color: "#555" })],
+    options: baseOptions({ hideXGrid: true, maxTicks: 6 })
+  });
+
+  renderHeatmap(data);
+}
+
+function setKpi(id, value) {
+  const el = document.getElementById(id);
+  el.textContent = fmtPct(value);
+  el.classList.add(classFor(value));
+}
+
+function renderInsights(data, last) {
+  const withAcum = data.filter(d => d.variacao_acum_12m !== null && d.variacao_acum_12m !== undefined);
+  if (withAcum.length > 1) {
+    const first = withAcum[0];
+    const delta = last.variacao_acum_12m - first.variacao_acum_12m;
+    const direction = delta >= 0 ? "subiu" : "caiu";
+    document.getElementById("insight-acum12").textContent =
+      `${direction === "subiu" ? "Alta" : "Queda"} acumulada: de ${fmtPct(first.variacao_acum_12m)} em ${first.periodo.slice(0,7)} para ${fmtPct(last.variacao_acum_12m)} em ${last.periodo.slice(0,7)}.`;
+  }
+
+  const withBoth = data.filter(d => d.margem_absorvida_lag1 !== null && d.repasse_lag1 !== null);
+  const costAbove = withBoth.filter(d => d.margem_absorvida_lag1 > d.repasse_lag1).length;
+  if (withBoth.length > 0) {
+    const pct = (costAbove / withBoth.length * 100).toFixed(0);
+    document.getElementById("insight-margem").textContent =
+      `Em ${pct}% dos meses, o custo superou o repasse — a margem foi absorvida pelo negócio.`;
+  }
+
+  const positives = data.filter(d => d.variacao_mensal >= 0).length;
+  document.getElementById("insight-variacao").textContent =
+    `${positives} de ${data.length} meses com variação positiva.`;
+}
+
+function baseOptions({ hideXGrid = false, maxTicks = 10 } = {}) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: "index", intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: "#1a1a1a",
+        borderColor: "#333",
+        borderWidth: 1,
+        titleColor: "#e8e8e8",
+        bodyColor: "#e8e8e8",
+        padding: 10,
+        callbacks: { label: ctx => fmtPct(ctx.parsed.y) }
+      }
+    },
+    scales: {
+      x: {
+        ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: maxTicks },
+        grid: { display: !hideXGrid, color: GRID },
+        border: { color: "#2a2a2a" }
+      },
+      y: {
+        grid: { color: GRID },
+        border: { display: false },
+        ticks: { callback: v => v + "%" }
+      }
+    }
+  };
+}
+
+function renderHeatmap(data) {
+  const sums = new Array(12).fill(0);
+  const counts = new Array(12).fill(0);
+
+  data.forEach(d => {
+    if (d.variacao_mensal === null || d.variacao_mensal === undefined) return;
+    const month = parseInt(d.periodo.slice(5, 7), 10) - 1;
+    sums[month] += d.variacao_mensal;
+    counts[month] += 1;
+  });
+
+  const avgs = sums.map((s, i) => counts[i] ? s / counts[i] : null);
+  const validAvgs = avgs.filter(v => v !== null);
+  const min = Math.min(...validAvgs);
+  const max = Math.max(...validAvgs);
+  const range = max - min || 0.0001;
+
+  const heatmap = document.getElementById("heatmap");
+  heatmap.innerHTML = "";
+
+  avgs.forEach((avg, i) => {
+    const cell = document.createElement("div");
+
+    cell.style.width = "70px";
+    cell.style.height = "64px";
+    cell.style.borderRadius = "6px";
+    cell.style.display = "flex";
+    cell.style.flexDirection = "column";
+    cell.style.alignItems = "center";
+    cell.style.justifyContent = "center";
+    cell.style.gap = "4px";
+
+    const monthEl = document.createElement("div");
+    monthEl.textContent = monthNames[i];
+    monthEl.style.fontSize = "11px";
+
+    const valueEl = document.createElement("div");
+    valueEl.style.fontSize = "13px";
+    valueEl.style.fontWeight = "600";
+
+    if (avg === null) {
+      cell.style.backgroundColor = "#1a1a1a";
+      cell.style.color = "#8a8a8a";
+      valueEl.textContent = "--";
+    } else {
+      const t = (avg - min) / range;
+      cell.style.backgroundColor = `rgba(42, 120, 214, ${0.12 + t * 0.78})`;
+      cell.style.color = t > 0.4 ? "#ffffff" : "#cccccc";
+      valueEl.textContent = fmtPct(avg);
+    }
+
+    cell.appendChild(monthEl);
+    cell.appendChild(valueEl);
+    heatmap.appendChild(cell);
+  });
+}
+
+function setupNarrativa(data) {
+  const selInicio = document.getElementById("sel-inicio");
+  const selFim = document.getElementById("sel-fim");
+  const btn = document.getElementById("btn-narrativa");
+  const texto = document.getElementById("narrativa-texto");
+
+  data.forEach(d => {
+    const label = d.periodo.slice(0, 7);
+    selInicio.add(new Option(label, d.periodo));
+    selFim.add(new Option(label, d.periodo));
+  });
+  selInicio.value = data[Math.max(0, data.length - 24)].periodo;
+  selFim.value = data[data.length - 1].periodo;
+
+  btn.addEventListener("click", async () => {
+    const inicio = selInicio.value;
+    const fim = selFim.value;
+
+    if (inicio > fim) {
+      texto.textContent = "O período inicial deve ser anterior ao final.";
+      texto.classList.add("placeholder");
+      return;
+    }
+
+    const recorte = data.filter(d => d.periodo >= inicio && d.periodo <= fim);
+
+    btn.disabled = true;
+    texto.classList.add("placeholder");
+    texto.textContent = "Gerando narrativa...";
+
+    try {
+      const res = await fetch("/narrativa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          periodo_inicio: inicio,
+          periodo_fim: fim,
+          dados: recorte.map(d => ({
+            periodo: d.periodo,
+            variacao_mensal: d.variacao_mensal,
+            variacao_acum_12m: d.variacao_acum_12m,
+            margem_absorvida_lag1: d.margem_absorvida_lag1
+          }))
+        })
+      });
+
+      if (!res.ok) throw new Error("erro " + res.status);
+
+      const json = await res.json();
+      texto.textContent = json.narrativa;
+      texto.classList.remove("placeholder");
+    } catch (err) {
+      texto.textContent = "Erro ao gerar narrativa: " + err.message;
+      texto.classList.add("placeholder");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
+main().catch(err => {
+  document.getElementById("status").textContent = "erro ao carregar dados: " + err.message;
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,515 @@
+<title>IPCA Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #0f0f0f;
+    color: #e8e8e8;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 32px 40px 60px;
+    max-width: 1200px;
+  }
+  h1 {
+    font-size: 1.4rem;
+    margin: 0 0 4px 0;
+    font-weight: 600;
+  }
+  .subtitle {
+    color: #8a8a8a;
+    font-size: 0.9rem;
+    margin: 0 0 8px 0;
+  }
+  .snapshot-note {
+    color: #6b6b6b;
+    font-size: 0.78rem;
+    margin: 0 0 32px 0;
+  }
+
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0;
+    padding-bottom: 24px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid #232323;
+  }
+  .kpi { padding-right: 24px; }
+  .kpi-label {
+    font-size: 0.75rem;
+    color: #8a8a8a;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .kpi-value { font-size: 1.7rem; font-weight: 600; line-height: 1; }
+  .kpi-value.pos { color: #4da3ff; }
+  .kpi-value.neg { color: #ff5c5c; }
+  .kpi-value.neutral { color: #e8e8e8; }
+
+  section { margin-bottom: 44px; }
+  .section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #f0f0f0;
+    margin: 0 0 2px 0;
+  }
+  .section-insight {
+    font-size: 0.85rem;
+    color: #8a8a8a;
+    margin: 0 0 16px 0;
+  }
+  .legend-inline {
+    font-size: 0.78rem;
+    color: #8a8a8a;
+    margin-bottom: 10px;
+  }
+  .legend-inline span { margin-right: 16px; white-space: nowrap; }
+  .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+
+  .hero .chart-wrap { height: 320px; }
+  .chart-wrap { position: relative; height: 240px; }
+
+  #heatmap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .heat-cell {
+    width: 70px;
+    height: 60px;
+    border-radius: 8px;
+    padding: 10px 4px;
+    text-align: center;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .heat-month {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: rgba(255,255,255,0.85);
+    display: block;
+    margin-bottom: 6px;
+  }
+  .heat-value {
+    font-size: 0.8rem;
+    font-weight: 700;
+    display: block;
+  }
+
+  .narrativa-hero {
+    background: linear-gradient(135deg, #17222e, #161616);
+    border: 1px solid #2a3d52;
+    border-radius: 12px;
+    padding: 24px 28px;
+  }
+  .narrativa-hero .section-title {
+    font-size: 1.15rem;
+  }
+  .narrativa-hero #narrativa-texto {
+    border-left-color: #4da3ff;
+    background: rgba(0,0,0,0.25);
+  }
+
+  .narrativa-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .field label {
+    display: block;
+    font-size: 0.75rem;
+    color: #8a8a8a;
+    margin-bottom: 6px;
+  }
+  .field select {
+    background: #1a1a1a;
+    color: #e8e8e8;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 0.85rem;
+    font-family: inherit;
+  }
+  .scope-note {
+    font-size: 0.78rem;
+    color: #6b6b6b;
+    font-style: italic;
+    margin: 0 0 16px 0;
+  }
+  #btn-narrativa {
+    background: #4da3ff;
+    color: #0f0f0f;
+    border: none;
+    border-radius: 6px;
+    padding: 9px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  #btn-narrativa:disabled { opacity: 0.5; cursor: default; }
+  #narrativa-texto {
+    background: #161616;
+    border-left: 3px solid #4da3ff;
+    border-radius: 4px;
+    padding: 16px 18px;
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: #ddd;
+    min-height: 24px;
+  }
+  #narrativa-texto.placeholder { color: #6b6b6b; font-style: italic; }
+</style>
+
+<h1>IPCA Dashboard</h1>
+<p class="subtitle">Alimentação fora do domicílio — variação, repasse e margem absorvida</p>
+<p class="snapshot-note">Snapshot estático — dados congelados em 2026-07</p>
+
+<div id="dashboard">
+
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-label">Variação mensal atual</div>
+      <div class="kpi-value" id="kpi-variacao"></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Acumulado 12 meses</div>
+      <div class="kpi-value" id="kpi-acum12"></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Repasse (defasado 1m)</div>
+      <div class="kpi-value" id="kpi-repasse"></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Margem absorvida (defasado 1m)</div>
+      <div class="kpi-value" id="kpi-margem"></div>
+    </div>
+  </div>
+
+  <section class="narrativa-hero">
+    <div class="section-title">Narrativa do período</div>
+    <p class="section-insight">Selecione um intervalo e gere uma análise em texto sobre o comportamento da inflação</p>
+    <div class="narrativa-controls">
+      <div class="field">
+        <label for="sel-inicio">De</label>
+        <select id="sel-inicio"></select>
+      </div>
+      <div class="field">
+        <label for="sel-fim">Até</label>
+        <select id="sel-fim"></select>
+      </div>
+      <button id="btn-narrativa">Gerar narrativa</button>
+    </div>
+    <p class="scope-note">Gerado ao vivo pelo Claude, usando sua conta claude.ai (consome uso do seu plano, sem custo de API separado).</p>
+    <div id="narrativa-texto" class="placeholder">A narrativa gerada aparecerá aqui.</div>
+  </section>
+
+  <section class="hero">
+    <div class="section-title">Acumulado em 12 meses</div>
+    <p class="section-insight" id="insight-acum12"></p>
+    <div class="chart-wrap"><canvas id="chart-acum12"></canvas></div>
+  </section>
+
+  <section>
+    <div class="section-title">Variação mensal</div>
+    <p class="section-insight" id="insight-variacao"></p>
+    <div class="chart-wrap"><canvas id="chart-variacao"></canvas></div>
+  </section>
+
+  <section>
+    <div class="section-title">Custo x repasse: quem está absorvendo a margem</div>
+    <p class="section-insight" id="insight-margem"></p>
+    <div class="legend-inline">
+      <span><span class="dot" style="background:#ff5c5c"></span>custo acima do repasse</span>
+      <span><span class="dot" style="background:#a06bff"></span>repasse acima do custo</span>
+    </div>
+    <div class="chart-wrap"><canvas id="chart-margem"></canvas></div>
+  </section>
+
+  <section>
+    <div class="section-title">Sazonalidade</div>
+    <p class="section-insight">Média histórica de variação mensal, mês a mês</p>
+    <div id="heatmap"></div>
+  </section>
+
+</div>
+
+<script>
+const DATA = [{"periodo": "2012-01-01", "variacao_mensal": 1.21, "variacao_acum_12m": null, "repasse_lag1": null, "margem_absorvida_lag1": null}, {"periodo": "2012-02-01", "variacao_mensal": 0.59, "variacao_acum_12m": null, "repasse_lag1": 1.21, "margem_absorvida_lag1": -0.62}, {"periodo": "2012-03-01", "variacao_mensal": 0.31, "variacao_acum_12m": null, "repasse_lag1": 0.59, "margem_absorvida_lag1": -0.28}, {"periodo": "2012-04-01", "variacao_mensal": 0.31, "variacao_acum_12m": null, "repasse_lag1": 0.31, "margem_absorvida_lag1": 0.0}, {"periodo": "2012-05-01", "variacao_mensal": 0.53, "variacao_acum_12m": null, "repasse_lag1": 0.31, "margem_absorvida_lag1": 0.22}, {"periodo": "2012-06-01", "variacao_mensal": 0.7, "variacao_acum_12m": null, "repasse_lag1": 0.53, "margem_absorvida_lag1": 0.17}, {"periodo": "2012-07-01", "variacao_mensal": 1.13, "variacao_acum_12m": null, "repasse_lag1": 0.7, "margem_absorvida_lag1": 0.43}, {"periodo": "2012-08-01", "variacao_mensal": 0.85, "variacao_acum_12m": null, "repasse_lag1": 1.13, "margem_absorvida_lag1": -0.28}, {"periodo": "2012-09-01", "variacao_mensal": 0.43, "variacao_acum_12m": null, "repasse_lag1": 0.85, "margem_absorvida_lag1": -0.42}, {"periodo": "2012-10-01", "variacao_mensal": 0.99, "variacao_acum_12m": null, "repasse_lag1": 0.43, "margem_absorvida_lag1": 0.56}, {"periodo": "2012-11-01", "variacao_mensal": 1.31, "variacao_acum_12m": null, "repasse_lag1": 0.99, "margem_absorvida_lag1": 0.32}, {"periodo": "2012-12-01", "variacao_mensal": 0.77, "variacao_acum_12m": 9.13, "repasse_lag1": 1.31, "margem_absorvida_lag1": -0.54}, {"periodo": "2013-01-01", "variacao_mensal": 1.02, "variacao_acum_12m": 8.94, "repasse_lag1": 0.77, "margem_absorvida_lag1": 0.25}, {"periodo": "2013-02-01", "variacao_mensal": 1.1, "variacao_acum_12m": 9.45, "repasse_lag1": 1.02, "margem_absorvida_lag1": 0.08}, {"periodo": "2013-03-01", "variacao_mensal": 0.72, "variacao_acum_12m": 9.86, "repasse_lag1": 1.1, "margem_absorvida_lag1": -0.38}, {"periodo": "2013-04-01", "variacao_mensal": 0.69, "variacao_acum_12m": 10.24, "repasse_lag1": 0.72, "margem_absorvida_lag1": -0.03}, {"periodo": "2013-05-01", "variacao_mensal": 0.83, "variacao_acum_12m": 10.54, "repasse_lag1": 0.69, "margem_absorvida_lag1": 0.14}, {"periodo": "2013-06-01", "variacao_mensal": 0.81, "variacao_acum_12m": 10.65, "repasse_lag1": 0.83, "margem_absorvida_lag1": -0.02}, {"periodo": "2013-07-01", "variacao_mensal": 0.45, "variacao_acum_12m": 9.97, "repasse_lag1": 0.81, "margem_absorvida_lag1": -0.36}, {"periodo": "2013-08-01", "variacao_mensal": 0.67, "variacao_acum_12m": 9.79, "repasse_lag1": 0.45, "margem_absorvida_lag1": 0.22}, {"periodo": "2013-09-01", "variacao_mensal": 0.47, "variacao_acum_12m": 9.83, "repasse_lag1": 0.67, "margem_absorvida_lag1": -0.2}, {"periodo": "2013-10-01", "variacao_mensal": 0.94, "variacao_acum_12m": 9.78, "repasse_lag1": 0.47, "margem_absorvida_lag1": 0.47}, {"periodo": "2013-11-01", "variacao_mensal": 0.85, "variacao_acum_12m": 9.32, "repasse_lag1": 0.94, "margem_absorvida_lag1": -0.09}, {"periodo": "2013-12-01", "variacao_mensal": 1.08, "variacao_acum_12m": 9.63, "repasse_lag1": 0.85, "margem_absorvida_lag1": 0.23}, {"periodo": "2014-01-01", "variacao_mensal": 0.73, "variacao_acum_12m": 9.34, "repasse_lag1": 1.08, "margem_absorvida_lag1": -0.35}, {"periodo": "2014-02-01", "variacao_mensal": 1.21, "variacao_acum_12m": 9.45, "repasse_lag1": 0.73, "margem_absorvida_lag1": 0.48}, {"periodo": "2014-03-01", "variacao_mensal": 0.96, "variacao_acum_12m": 9.69, "repasse_lag1": 1.21, "margem_absorvida_lag1": -0.25}, {"periodo": "2014-04-01", "variacao_mensal": 0.57, "variacao_acum_12m": 9.57, "repasse_lag1": 0.96, "margem_absorvida_lag1": -0.39}, {"periodo": "2014-05-01", "variacao_mensal": 0.91, "variacao_acum_12m": 9.65, "repasse_lag1": 0.57, "margem_absorvida_lag1": 0.34}, {"periodo": "2014-06-01", "variacao_mensal": 0.82, "variacao_acum_12m": 9.66, "repasse_lag1": 0.91, "margem_absorvida_lag1": -0.09}, {"periodo": "2014-07-01", "variacao_mensal": 0.52, "variacao_acum_12m": 9.73, "repasse_lag1": 0.82, "margem_absorvida_lag1": -0.3}, {"periodo": "2014-08-01", "variacao_mensal": 0.71, "variacao_acum_12m": 9.77, "repasse_lag1": 0.52, "margem_absorvida_lag1": 0.19}, {"periodo": "2014-09-01", "variacao_mensal": 0.81, "variacao_acum_12m": 10.11, "repasse_lag1": 0.71, "margem_absorvida_lag1": 0.1}, {"periodo": "2014-10-01", "variacao_mensal": 0.43, "variacao_acum_12m": 9.6, "repasse_lag1": 0.81, "margem_absorvida_lag1": -0.38}, {"periodo": "2014-11-01", "variacao_mensal": 0.4, "variacao_acum_12m": 9.15, "repasse_lag1": 0.43, "margem_absorvida_lag1": -0.03}, {"periodo": "2014-12-01", "variacao_mensal": 1.31, "variacao_acum_12m": 9.38, "repasse_lag1": 0.4, "margem_absorvida_lag1": 0.91}, {"periodo": "2015-01-01", "variacao_mensal": 1.01, "variacao_acum_12m": 9.66, "repasse_lag1": 1.31, "margem_absorvida_lag1": -0.3}, {"periodo": "2015-02-01", "variacao_mensal": 0.95, "variacao_acum_12m": 9.4, "repasse_lag1": 1.01, "margem_absorvida_lag1": -0.06}, {"periodo": "2015-03-01", "variacao_mensal": 1.17, "variacao_acum_12m": 9.61, "repasse_lag1": 0.95, "margem_absorvida_lag1": 0.22}, {"periodo": "2015-04-01", "variacao_mensal": 0.97, "variacao_acum_12m": 10.01, "repasse_lag1": 1.17, "margem_absorvida_lag1": -0.2}, {"periodo": "2015-05-01", "variacao_mensal": 0.93, "variacao_acum_12m": 10.03, "repasse_lag1": 0.97, "margem_absorvida_lag1": -0.04}, {"periodo": "2015-06-01", "variacao_mensal": 0.49, "variacao_acum_12m": 9.7, "repasse_lag1": 0.93, "margem_absorvida_lag1": -0.44}, {"periodo": "2015-07-01", "variacao_mensal": 0.77, "variacao_acum_12m": 9.95, "repasse_lag1": 0.49, "margem_absorvida_lag1": 0.28}, {"periodo": "2015-08-01", "variacao_mensal": 0.57, "variacao_acum_12m": 9.81, "repasse_lag1": 0.77, "margem_absorvida_lag1": -0.2}, {"periodo": "2015-09-01", "variacao_mensal": 0.77, "variacao_acum_12m": 9.77, "repasse_lag1": 0.57, "margem_absorvida_lag1": 0.2}, {"periodo": "2015-10-01", "variacao_mensal": 0.93, "variacao_acum_12m": 10.27, "repasse_lag1": 0.77, "margem_absorvida_lag1": 0.16}, {"periodo": "2015-11-01", "variacao_mensal": 0.7, "variacao_acum_12m": 10.57, "repasse_lag1": 0.93, "margem_absorvida_lag1": -0.23}, {"periodo": "2015-12-01", "variacao_mensal": 0.65, "variacao_acum_12m": 9.91, "repasse_lag1": 0.7, "margem_absorvida_lag1": -0.05}, {"periodo": "2016-01-01", "variacao_mensal": 1.12, "variacao_acum_12m": 10.02, "repasse_lag1": 0.65, "margem_absorvida_lag1": 0.47}, {"periodo": "2016-02-01", "variacao_mensal": 0.64, "variacao_acum_12m": 9.71, "repasse_lag1": 1.12, "margem_absorvida_lag1": -0.48}, {"periodo": "2016-03-01", "variacao_mensal": 0.55, "variacao_acum_12m": 9.09, "repasse_lag1": 0.64, "margem_absorvida_lag1": -0.09}, {"periodo": "2016-04-01", "variacao_mensal": 0.99, "variacao_acum_12m": 9.11, "repasse_lag1": 0.55, "margem_absorvida_lag1": 0.44}, {"periodo": "2016-05-01", "variacao_mensal": 0.6, "variacao_acum_12m": 8.78, "repasse_lag1": 0.99, "margem_absorvida_lag1": -0.39}, {"periodo": "2016-06-01", "variacao_mensal": 0.71, "variacao_acum_12m": 9.0, "repasse_lag1": 0.6, "margem_absorvida_lag1": 0.11}, {"periodo": "2016-07-01", "variacao_mensal": 0.48, "variacao_acum_12m": 8.71, "repasse_lag1": 0.71, "margem_absorvida_lag1": -0.23}, {"periodo": "2016-08-01", "variacao_mensal": 0.18, "variacao_acum_12m": 8.32, "repasse_lag1": 0.48, "margem_absorvida_lag1": -0.3}, {"periodo": "2016-09-01", "variacao_mensal": 0.33, "variacao_acum_12m": 7.88, "repasse_lag1": 0.18, "margem_absorvida_lag1": 0.15}, {"periodo": "2016-10-01", "variacao_mensal": 0.75, "variacao_acum_12m": 7.7, "repasse_lag1": 0.33, "margem_absorvida_lag1": 0.42}, {"periodo": "2016-11-01", "variacao_mensal": 0.33, "variacao_acum_12m": 7.33, "repasse_lag1": 0.75, "margem_absorvida_lag1": -0.42}, {"periodo": "2016-12-01", "variacao_mensal": 0.33, "variacao_acum_12m": 7.01, "repasse_lag1": 0.33, "margem_absorvida_lag1": 0.0}, {"periodo": "2017-01-01", "variacao_mensal": 0.69, "variacao_acum_12m": 6.58, "repasse_lag1": 0.33, "margem_absorvida_lag1": 0.36}, {"periodo": "2017-02-01", "variacao_mensal": 0.11, "variacao_acum_12m": 6.05, "repasse_lag1": 0.69, "margem_absorvida_lag1": -0.58}, {"periodo": "2017-03-01", "variacao_mensal": 0.41, "variacao_acum_12m": 5.91, "repasse_lag1": 0.11, "margem_absorvida_lag1": 0.3}, {"periodo": "2017-04-01", "variacao_mensal": 0.38, "variacao_acum_12m": 5.3, "repasse_lag1": 0.41, "margem_absorvida_lag1": -0.03}, {"periodo": "2017-05-01", "variacao_mensal": 0.06, "variacao_acum_12m": 4.76, "repasse_lag1": 0.38, "margem_absorvida_lag1": -0.32}, {"periodo": "2017-06-01", "variacao_mensal": 0.32, "variacao_acum_12m": 4.37, "repasse_lag1": 0.06, "margem_absorvida_lag1": 0.26}, {"periodo": "2017-07-01", "variacao_mensal": 0.15, "variacao_acum_12m": 4.04, "repasse_lag1": 0.32, "margem_absorvida_lag1": -0.17}, {"periodo": "2017-08-01", "variacao_mensal": 0.35, "variacao_acum_12m": 4.21, "repasse_lag1": 0.15, "margem_absorvida_lag1": 0.2}, {"periodo": "2017-09-01", "variacao_mensal": 0.18, "variacao_acum_12m": 4.06, "repasse_lag1": 0.35, "margem_absorvida_lag1": -0.17}, {"periodo": "2017-10-01", "variacao_mensal": 0.16, "variacao_acum_12m": 3.47, "repasse_lag1": 0.18, "margem_absorvida_lag1": -0.02}, {"periodo": "2017-11-01", "variacao_mensal": 0.21, "variacao_acum_12m": 3.35, "repasse_lag1": 0.16, "margem_absorvida_lag1": 0.05}, {"periodo": "2017-12-01", "variacao_mensal": 0.74, "variacao_acum_12m": 3.76, "repasse_lag1": 0.21, "margem_absorvida_lag1": 0.53}, {"periodo": "2018-01-01", "variacao_mensal": 0.06, "variacao_acum_12m": 3.13, "repasse_lag1": 0.74, "margem_absorvida_lag1": -0.68}, {"periodo": "2018-02-01", "variacao_mensal": 0.18, "variacao_acum_12m": 3.2, "repasse_lag1": 0.06, "margem_absorvida_lag1": 0.12}, {"periodo": "2018-03-01", "variacao_mensal": 0.52, "variacao_acum_12m": 3.31, "repasse_lag1": 0.18, "margem_absorvida_lag1": 0.34}, {"periodo": "2018-04-01", "variacao_mensal": -0.22, "variacao_acum_12m": 2.71, "repasse_lag1": 0.52, "margem_absorvida_lag1": -0.74}, {"periodo": "2018-05-01", "variacao_mensal": 0.26, "variacao_acum_12m": 2.91, "repasse_lag1": -0.22, "margem_absorvida_lag1": 0.48}, {"periodo": "2018-06-01", "variacao_mensal": 0.17, "variacao_acum_12m": 2.76, "repasse_lag1": 0.26, "margem_absorvida_lag1": -0.09}, {"periodo": "2018-07-01", "variacao_mensal": 0.72, "variacao_acum_12m": 3.33, "repasse_lag1": 0.17, "margem_absorvida_lag1": 0.55}, {"periodo": "2018-08-01", "variacao_mensal": 0.32, "variacao_acum_12m": 3.3, "repasse_lag1": 0.72, "margem_absorvida_lag1": -0.4}, {"periodo": "2018-09-01", "variacao_mensal": 0.29, "variacao_acum_12m": 3.41, "repasse_lag1": 0.32, "margem_absorvida_lag1": -0.03}, {"periodo": "2018-10-01", "variacao_mensal": 0.02, "variacao_acum_12m": 3.27, "repasse_lag1": 0.29, "margem_absorvida_lag1": -0.27}, {"periodo": "2018-11-01", "variacao_mensal": 0.49, "variacao_acum_12m": 3.55, "repasse_lag1": 0.02, "margem_absorvida_lag1": 0.47}, {"periodo": "2018-12-01", "variacao_mensal": 0.33, "variacao_acum_12m": 3.14, "repasse_lag1": 0.49, "margem_absorvida_lag1": -0.16}, {"periodo": "2019-01-01", "variacao_mensal": 0.79, "variacao_acum_12m": 3.87, "repasse_lag1": 0.33, "margem_absorvida_lag1": 0.46}, {"periodo": "2019-02-01", "variacao_mensal": -0.04, "variacao_acum_12m": 3.65, "repasse_lag1": 0.79, "margem_absorvida_lag1": -0.83}, {"periodo": "2019-03-01", "variacao_mensal": 0.1, "variacao_acum_12m": 3.23, "repasse_lag1": -0.04, "margem_absorvida_lag1": 0.14}, {"periodo": "2019-04-01", "variacao_mensal": 0.64, "variacao_acum_12m": 4.09, "repasse_lag1": 0.1, "margem_absorvida_lag1": 0.54}, {"periodo": "2019-05-01", "variacao_mensal": 0.03, "variacao_acum_12m": 3.86, "repasse_lag1": 0.64, "margem_absorvida_lag1": -0.61}, {"periodo": "2019-06-01", "variacao_mensal": 0.02, "variacao_acum_12m": 3.71, "repasse_lag1": 0.03, "margem_absorvida_lag1": -0.01}, {"periodo": "2019-07-01", "variacao_mensal": 0.15, "variacao_acum_12m": 3.14, "repasse_lag1": 0.02, "margem_absorvida_lag1": 0.13}, {"periodo": "2019-08-01", "variacao_mensal": 0.53, "variacao_acum_12m": 3.35, "repasse_lag1": 0.15, "margem_absorvida_lag1": 0.38}, {"periodo": "2019-09-01", "variacao_mensal": 0.04, "variacao_acum_12m": 3.1, "repasse_lag1": 0.53, "margem_absorvida_lag1": -0.49}, {"periodo": "2019-10-01", "variacao_mensal": 0.19, "variacao_acum_12m": 3.27, "repasse_lag1": 0.04, "margem_absorvida_lag1": 0.15}, {"periodo": "2019-11-01", "variacao_mensal": 0.21, "variacao_acum_12m": 2.99, "repasse_lag1": 0.19, "margem_absorvida_lag1": 0.02}, {"periodo": "2019-12-01", "variacao_mensal": 1.04, "variacao_acum_12m": 3.7, "repasse_lag1": 0.21, "margem_absorvida_lag1": 0.83}, {"periodo": "2020-01-01", "variacao_mensal": 0.82, "variacao_acum_12m": 3.73, "repasse_lag1": 1.04, "margem_absorvida_lag1": -0.22}, {"periodo": "2020-02-01", "variacao_mensal": 0.22, "variacao_acum_12m": 3.99, "repasse_lag1": 0.82, "margem_absorvida_lag1": -0.6}, {"periodo": "2020-03-01", "variacao_mensal": 0.51, "variacao_acum_12m": 4.4, "repasse_lag1": 0.22, "margem_absorvida_lag1": 0.29}, {"periodo": "2020-04-01", "variacao_mensal": 0.76, "variacao_acum_12m": 4.52, "repasse_lag1": 0.51, "margem_absorvida_lag1": 0.25}, {"periodo": "2020-05-01", "variacao_mensal": 0.04, "variacao_acum_12m": 4.53, "repasse_lag1": 0.76, "margem_absorvida_lag1": -0.72}, {"periodo": "2020-06-01", "variacao_mensal": 0.22, "variacao_acum_12m": 4.73, "repasse_lag1": 0.04, "margem_absorvida_lag1": 0.18}, {"periodo": "2020-07-01", "variacao_mensal": -0.29, "variacao_acum_12m": 4.29, "repasse_lag1": 0.22, "margem_absorvida_lag1": -0.51}, {"periodo": "2020-08-01", "variacao_mensal": -0.11, "variacao_acum_12m": 3.65, "repasse_lag1": -0.29, "margem_absorvida_lag1": 0.18}, {"periodo": "2020-09-01", "variacao_mensal": 0.82, "variacao_acum_12m": 4.43, "repasse_lag1": -0.11, "margem_absorvida_lag1": 0.93}, {"periodo": "2020-10-01", "variacao_mensal": 0.36, "variacao_acum_12m": 4.6, "repasse_lag1": 0.82, "margem_absorvida_lag1": -0.46}, {"periodo": "2020-11-01", "variacao_mensal": 0.57, "variacao_acum_12m": 4.96, "repasse_lag1": 0.36, "margem_absorvida_lag1": 0.21}, {"periodo": "2020-12-01", "variacao_mensal": 0.77, "variacao_acum_12m": 4.69, "repasse_lag1": 0.57, "margem_absorvida_lag1": 0.2}, {"periodo": "2021-01-01", "variacao_mensal": 0.91, "variacao_acum_12m": 4.78, "repasse_lag1": 0.77, "margem_absorvida_lag1": 0.14}, {"periodo": "2021-02-01", "variacao_mensal": 0.27, "variacao_acum_12m": 4.83, "repasse_lag1": 0.91, "margem_absorvida_lag1": -0.64}, {"periodo": "2021-03-01", "variacao_mensal": 0.89, "variacao_acum_12m": 5.21, "repasse_lag1": 0.27, "margem_absorvida_lag1": 0.62}, {"periodo": "2021-04-01", "variacao_mensal": 0.23, "variacao_acum_12m": 4.68, "repasse_lag1": 0.89, "margem_absorvida_lag1": -0.66}, {"periodo": "2021-05-01", "variacao_mensal": 0.98, "variacao_acum_12m": 5.62, "repasse_lag1": 0.23, "margem_absorvida_lag1": 0.75}, {"periodo": "2021-06-01", "variacao_mensal": 0.66, "variacao_acum_12m": 6.06, "repasse_lag1": 0.98, "margem_absorvida_lag1": -0.32}, {"periodo": "2021-07-01", "variacao_mensal": 0.14, "variacao_acum_12m": 6.49, "repasse_lag1": 0.66, "margem_absorvida_lag1": -0.52}, {"periodo": "2021-08-01", "variacao_mensal": 0.76, "variacao_acum_12m": 7.36, "repasse_lag1": 0.14, "margem_absorvida_lag1": 0.62}, {"periodo": "2021-09-01", "variacao_mensal": 0.59, "variacao_acum_12m": 7.13, "repasse_lag1": 0.76, "margem_absorvida_lag1": -0.17}, {"periodo": "2021-10-01", "variacao_mensal": 0.78, "variacao_acum_12m": 7.55, "repasse_lag1": 0.59, "margem_absorvida_lag1": 0.19}, {"periodo": "2021-11-01", "variacao_mensal": -0.25, "variacao_acum_12m": 6.73, "repasse_lag1": 0.78, "margem_absorvida_lag1": -1.03}, {"periodo": "2021-12-01", "variacao_mensal": 0.98, "variacao_acum_12m": 6.94, "repasse_lag1": -0.25, "margem_absorvida_lag1": 1.23}, {"periodo": "2022-01-01", "variacao_mensal": 0.25, "variacao_acum_12m": 6.28, "repasse_lag1": 0.98, "margem_absorvida_lag1": -0.73}, {"periodo": "2022-02-01", "variacao_mensal": 0.3, "variacao_acum_12m": 6.31, "repasse_lag1": 0.25, "margem_absorvida_lag1": 0.05}, {"periodo": "2022-03-01", "variacao_mensal": 0.65, "variacao_acum_12m": 6.07, "repasse_lag1": 0.3, "margem_absorvida_lag1": 0.35}, {"periodo": "2022-04-01", "variacao_mensal": 0.62, "variacao_acum_12m": 6.46, "repasse_lag1": 0.65, "margem_absorvida_lag1": -0.03}, {"periodo": "2022-05-01", "variacao_mensal": 0.61, "variacao_acum_12m": 6.09, "repasse_lag1": 0.62, "margem_absorvida_lag1": -0.01}, {"periodo": "2022-06-01", "variacao_mensal": 1.26, "variacao_acum_12m": 6.69, "repasse_lag1": 0.61, "margem_absorvida_lag1": 0.65}, {"periodo": "2022-07-01", "variacao_mensal": 0.82, "variacao_acum_12m": 7.37, "repasse_lag1": 1.26, "margem_absorvida_lag1": -0.44}, {"periodo": "2022-08-01", "variacao_mensal": 0.89, "variacao_acum_12m": 7.5, "repasse_lag1": 0.82, "margem_absorvida_lag1": 0.07}, {"periodo": "2022-09-01", "variacao_mensal": 0.47, "variacao_acum_12m": 7.38, "repasse_lag1": 0.89, "margem_absorvida_lag1": -0.42}, {"periodo": "2022-10-01", "variacao_mensal": 0.49, "variacao_acum_12m": 7.09, "repasse_lag1": 0.47, "margem_absorvida_lag1": 0.02}, {"periodo": "2022-11-01", "variacao_mensal": 0.39, "variacao_acum_12m": 7.73, "repasse_lag1": 0.49, "margem_absorvida_lag1": -0.1}, {"periodo": "2022-12-01", "variacao_mensal": 0.51, "variacao_acum_12m": 7.26, "repasse_lag1": 0.39, "margem_absorvida_lag1": 0.12}, {"periodo": "2023-01-01", "variacao_mensal": 0.57, "variacao_acum_12m": 7.58, "repasse_lag1": 0.51, "margem_absorvida_lag1": 0.06}, {"periodo": "2023-02-01", "variacao_mensal": 0.5, "variacao_acum_12m": 7.78, "repasse_lag1": 0.57, "margem_absorvida_lag1": -0.07}, {"periodo": "2023-03-01", "variacao_mensal": 0.6, "variacao_acum_12m": 7.73, "repasse_lag1": 0.5, "margem_absorvida_lag1": 0.1}, {"periodo": "2023-04-01", "variacao_mensal": 0.66, "variacao_acum_12m": 7.77, "repasse_lag1": 0.6, "margem_absorvida_lag1": 0.06}, {"periodo": "2023-05-01", "variacao_mensal": 0.58, "variacao_acum_12m": 7.74, "repasse_lag1": 0.66, "margem_absorvida_lag1": -0.08}, {"periodo": "2023-06-01", "variacao_mensal": 0.46, "variacao_acum_12m": 6.94, "repasse_lag1": 0.58, "margem_absorvida_lag1": -0.12}, {"periodo": "2023-07-01", "variacao_mensal": 0.21, "variacao_acum_12m": 6.33, "repasse_lag1": 0.46, "margem_absorvida_lag1": -0.25}, {"periodo": "2023-08-01", "variacao_mensal": 0.22, "variacao_acum_12m": 5.66, "repasse_lag1": 0.21, "margem_absorvida_lag1": 0.01}, {"periodo": "2023-09-01", "variacao_mensal": 0.12, "variacao_acum_12m": 5.31, "repasse_lag1": 0.22, "margem_absorvida_lag1": -0.1}, {"periodo": "2023-10-01", "variacao_mensal": 0.42, "variacao_acum_12m": 5.24, "repasse_lag1": 0.12, "margem_absorvida_lag1": 0.3}, {"periodo": "2023-11-01", "variacao_mensal": 0.32, "variacao_acum_12m": 5.17, "repasse_lag1": 0.42, "margem_absorvida_lag1": -0.1}, {"periodo": "2023-12-01", "variacao_mensal": 0.53, "variacao_acum_12m": 5.19, "repasse_lag1": 0.32, "margem_absorvida_lag1": 0.21}, {"periodo": "2024-01-01", "variacao_mensal": 0.25, "variacao_acum_12m": 4.87, "repasse_lag1": 0.53, "margem_absorvida_lag1": -0.28}, {"periodo": "2024-02-01", "variacao_mensal": 0.49, "variacao_acum_12m": 4.86, "repasse_lag1": 0.25, "margem_absorvida_lag1": 0.24}, {"periodo": "2024-03-01", "variacao_mensal": 0.35, "variacao_acum_12m": 4.61, "repasse_lag1": 0.49, "margem_absorvida_lag1": -0.14}, {"periodo": "2024-04-01", "variacao_mensal": 0.39, "variacao_acum_12m": 4.34, "repasse_lag1": 0.35, "margem_absorvida_lag1": 0.04}, {"periodo": "2024-05-01", "variacao_mensal": 0.5, "variacao_acum_12m": 4.26, "repasse_lag1": 0.39, "margem_absorvida_lag1": 0.11}, {"periodo": "2024-06-01", "variacao_mensal": 0.37, "variacao_acum_12m": 4.17, "repasse_lag1": 0.5, "margem_absorvida_lag1": -0.13}, {"periodo": "2024-07-01", "variacao_mensal": 0.39, "variacao_acum_12m": 4.35, "repasse_lag1": 0.37, "margem_absorvida_lag1": 0.02}, {"periodo": "2024-08-01", "variacao_mensal": 0.33, "variacao_acum_12m": 4.46, "repasse_lag1": 0.39, "margem_absorvida_lag1": -0.06}, {"periodo": "2024-09-01", "variacao_mensal": 0.34, "variacao_acum_12m": 4.68, "repasse_lag1": 0.33, "margem_absorvida_lag1": 0.01}, {"periodo": "2024-10-01", "variacao_mensal": 0.65, "variacao_acum_12m": 4.91, "repasse_lag1": 0.34, "margem_absorvida_lag1": 0.31}, {"periodo": "2024-11-01", "variacao_mensal": 0.88, "variacao_acum_12m": 5.47, "repasse_lag1": 0.65, "margem_absorvida_lag1": 0.23}, {"periodo": "2024-12-01", "variacao_mensal": 1.19, "variacao_acum_12m": 6.13, "repasse_lag1": 0.88, "margem_absorvida_lag1": 0.31}, {"periodo": "2025-01-01", "variacao_mensal": 0.67, "variacao_acum_12m": 6.55, "repasse_lag1": 1.19, "margem_absorvida_lag1": -0.52}, {"periodo": "2025-02-01", "variacao_mensal": 0.47, "variacao_acum_12m": 6.53, "repasse_lag1": 0.67, "margem_absorvida_lag1": -0.2}, {"periodo": "2025-03-01", "variacao_mensal": 0.77, "variacao_acum_12m": 6.95, "repasse_lag1": 0.47, "margem_absorvida_lag1": 0.3}, {"periodo": "2025-04-01", "variacao_mensal": 0.8, "variacao_acum_12m": 7.36, "repasse_lag1": 0.77, "margem_absorvida_lag1": 0.03}, {"periodo": "2025-05-01", "variacao_mensal": 0.58, "variacao_acum_12m": 7.44, "repasse_lag1": 0.8, "margem_absorvida_lag1": -0.22}, {"periodo": "2025-06-01", "variacao_mensal": 0.46, "variacao_acum_12m": 7.53, "repasse_lag1": 0.58, "margem_absorvida_lag1": -0.12}, {"periodo": "2025-07-01", "variacao_mensal": 0.87, "variacao_acum_12m": 8.01, "repasse_lag1": 0.46, "margem_absorvida_lag1": 0.41}, {"periodo": "2025-08-01", "variacao_mensal": 0.5, "variacao_acum_12m": 8.18, "repasse_lag1": 0.87, "margem_absorvida_lag1": -0.37}, {"periodo": "2025-09-01", "variacao_mensal": 0.11, "variacao_acum_12m": 7.95, "repasse_lag1": 0.5, "margem_absorvida_lag1": -0.39}, {"periodo": "2025-10-01", "variacao_mensal": 0.46, "variacao_acum_12m": 7.76, "repasse_lag1": 0.11, "margem_absorvida_lag1": 0.35}, {"periodo": "2025-11-01", "variacao_mensal": 0.46, "variacao_acum_12m": 7.34, "repasse_lag1": 0.46, "margem_absorvida_lag1": 0.0}, {"periodo": "2025-12-01", "variacao_mensal": 0.6, "variacao_acum_12m": 6.75, "repasse_lag1": 0.46, "margem_absorvida_lag1": 0.14}, {"periodo": "2026-01-01", "variacao_mensal": 0.55, "variacao_acum_12m": 6.63, "repasse_lag1": 0.6, "margem_absorvida_lag1": -0.05}, {"periodo": "2026-02-01", "variacao_mensal": 0.34, "variacao_acum_12m": 6.5, "repasse_lag1": 0.55, "margem_absorvida_lag1": -0.21}, {"periodo": "2026-03-01", "variacao_mensal": 0.61, "variacao_acum_12m": 6.34, "repasse_lag1": 0.34, "margem_absorvida_lag1": 0.27}, {"periodo": "2026-04-01", "variacao_mensal": 0.59, "variacao_acum_12m": 6.13, "repasse_lag1": 0.61, "margem_absorvida_lag1": -0.02}, {"periodo": "2026-05-01", "variacao_mensal": 0.49, "variacao_acum_12m": 6.04, "repasse_lag1": 0.59, "margem_absorvida_lag1": -0.1}, {"periodo": "2026-06-01", "variacao_mensal": 0.15, "variacao_acum_12m": 5.73, "repasse_lag1": 0.49, "margem_absorvida_lag1": -0.34}, {"periodo": "2026-07-01", "variacao_mensal": 0.55, "variacao_acum_12m": 5.41, "repasse_lag1": 0.15, "margem_absorvida_lag1": 0.4}];
+
+
+const BLUE = "#4da3ff";
+const RED = "#ff5c5c";
+const PURPLE = "#a06bff";
+const GRAY = "#6b6b6b";
+const GRID = "rgba(255,255,255,0.06)";
+
+const fmtPct = v => v === null || v === undefined ? "--" : v.toFixed(2) + "%";
+const monthNames = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+function makeZeroLinePlugin({ color = "#555", dash = [] } = {}) {
+  return {
+    id: "zeroLine",
+    afterDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      const y = scales.y.getPixelForValue(0);
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.setLineDash(dash);
+      ctx.beginPath();
+      ctx.moveTo(chartArea.left, y);
+      ctx.lineTo(chartArea.right, y);
+      ctx.stroke();
+      ctx.restore();
+    }
+  };
+}
+
+function classFor(v) {
+  if (v === null || v === undefined) return "neutral";
+  return v >= 0 ? "pos" : "neg";
+}
+
+function main() {
+  const data = DATA;
+  const last = data[data.length - 1];
+
+  setKpi("kpi-variacao", last.variacao_mensal);
+  setKpi("kpi-acum12", last.variacao_acum_12m);
+  setKpi("kpi-repasse", last.repasse_lag1);
+  setKpi("kpi-margem", last.margem_absorvida_lag1);
+
+  const labels = data.map(d => d.periodo);
+
+  Chart.defaults.color = GRAY;
+  Chart.defaults.font.family = "system-ui, -apple-system, 'Segoe UI', sans-serif";
+
+  renderInsights(data, last);
+
+  new Chart(document.getElementById("chart-acum12"), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        data: data.map(d => d.variacao_acum_12m),
+        borderColor: BLUE,
+        backgroundColor: "rgba(77,163,255,0.12)",
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        spanGaps: true,
+        borderWidth: 2
+      }]
+    },
+    options: baseOptions({ hideXGrid: true })
+  });
+
+  new Chart(document.getElementById("chart-variacao"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        data: data.map(d => d.variacao_mensal),
+        backgroundColor: data.map(d => d.variacao_mensal >= 0 ? "#2a78d6" : "#ff4444"),
+        borderRadius: 2
+      }]
+    },
+    plugins: [makeZeroLinePlugin({ color: "#555" })],
+    options: baseOptions({ hideXGrid: true, maxTicks: 6 })
+  });
+
+  new Chart(document.getElementById("chart-margem"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        data: data.map(d => d.margem_absorvida_lag1),
+        backgroundColor: data.map(d => {
+          if (d.margem_absorvida_lag1 === null || d.repasse_lag1 === null) return "#333";
+          return d.margem_absorvida_lag1 > d.repasse_lag1 ? RED : PURPLE;
+        }),
+        borderRadius: 2
+      }]
+    },
+    plugins: [makeZeroLinePlugin({ color: "#555", dash: [4, 4] })],
+    options: baseOptions({ hideXGrid: true })
+  });
+
+  renderHeatmap(data);
+  setupNarrativa(data);
+}
+
+function setKpi(id, value) {
+  const el = document.getElementById(id);
+  el.textContent = fmtPct(value);
+  el.classList.add(classFor(value));
+}
+
+function renderInsights(data, last) {
+  const withAcum = data.filter(d => d.variacao_acum_12m !== null && d.variacao_acum_12m !== undefined);
+  if (withAcum.length > 1) {
+    const first = withAcum[0];
+    const delta = last.variacao_acum_12m - first.variacao_acum_12m;
+    const direction = delta >= 0 ? "subiu" : "caiu";
+    document.getElementById("insight-acum12").textContent =
+      `${direction === "subiu" ? "Alta" : "Queda"} acumulada: de ${fmtPct(first.variacao_acum_12m)} em ${first.periodo.slice(0,7)} para ${fmtPct(last.variacao_acum_12m)} em ${last.periodo.slice(0,7)}.`;
+  }
+
+  const withBoth = data.filter(d => d.margem_absorvida_lag1 !== null && d.repasse_lag1 !== null);
+  const costAbove = withBoth.filter(d => d.margem_absorvida_lag1 > d.repasse_lag1).length;
+  if (withBoth.length > 0) {
+    const pct = (costAbove / withBoth.length * 100).toFixed(0);
+    document.getElementById("insight-margem").textContent =
+      `Em ${pct}% dos meses, o custo superou o repasse — a margem foi absorvida pelo negócio.`;
+  }
+
+  const positives = data.filter(d => d.variacao_mensal >= 0).length;
+  document.getElementById("insight-variacao").textContent =
+    `${positives} de ${data.length} meses com variação positiva.`;
+}
+
+function baseOptions({ hideXGrid = false, maxTicks = 10 } = {}) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: "index", intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: "#1a1a1a",
+        borderColor: "#333",
+        borderWidth: 1,
+        titleColor: "#e8e8e8",
+        bodyColor: "#e8e8e8",
+        padding: 10,
+        callbacks: { label: ctx => fmtPct(ctx.parsed.y) }
+      }
+    },
+    scales: {
+      x: {
+        ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: maxTicks },
+        grid: { display: !hideXGrid, color: GRID },
+        border: { color: "#2a2a2a" }
+      },
+      y: {
+        grid: { color: GRID },
+        border: { display: false },
+        ticks: { callback: v => v + "%" }
+      }
+    }
+  };
+}
+
+function renderHeatmap(data) {
+  const sums = new Array(12).fill(0);
+  const counts = new Array(12).fill(0);
+
+  data.forEach(d => {
+    if (d.variacao_mensal === null || d.variacao_mensal === undefined) return;
+    const month = parseInt(d.periodo.slice(5, 7), 10) - 1;
+    sums[month] += d.variacao_mensal;
+    counts[month] += 1;
+  });
+
+  const avgs = sums.map((s, i) => counts[i] ? s / counts[i] : null);
+  const validAvgs = avgs.filter(v => v !== null);
+  const min = Math.min(...validAvgs);
+  const max = Math.max(...validAvgs);
+  const range = max - min || 0.0001;
+
+  const heatmap = document.getElementById("heatmap");
+  heatmap.innerHTML = "";
+
+  avgs.forEach((avg, i) => {
+    const cell = document.createElement("div");
+    cell.className = "heat-cell";
+
+    if (avg === null) {
+      cell.style.background = "#1a1a1a";
+      cell.innerHTML = `<span class="heat-month">${monthNames[i]}</span><span class="heat-value">--</span>`;
+    } else {
+      const t = (avg - min) / range;
+      const opacity = 0.15 + t * 0.75;
+      cell.style.background = `rgba(42,120,214,${opacity})`;
+      cell.innerHTML = `<span class="heat-month">${monthNames[i]}</span><span class="heat-value">${fmtPct(avg)}</span>`;
+    }
+
+    heatmap.appendChild(cell);
+  });
+}
+
+function setupNarrativa(data) {
+  const selInicio = document.getElementById("sel-inicio");
+  const selFim = document.getElementById("sel-fim");
+  const btn = document.getElementById("btn-narrativa");
+  const texto = document.getElementById("narrativa-texto");
+
+  data.forEach(d => {
+    const label = d.periodo.slice(0, 7);
+    selInicio.add(new Option(label, d.periodo));
+    selFim.add(new Option(label, d.periodo));
+  });
+  selInicio.value = data[Math.max(0, data.length - 24)].periodo;
+  selFim.value = data[data.length - 1].periodo;
+
+  btn.addEventListener("click", async () => {
+    const inicio = selInicio.value;
+    const fim = selFim.value;
+
+    if (inicio > fim) {
+      texto.textContent = "O período inicial deve ser anterior ao final.";
+      texto.classList.add("placeholder");
+      return;
+    }
+
+    const recorte = data.filter(d => d.periodo >= inicio && d.periodo <= fim);
+
+    btn.disabled = true;
+    texto.classList.add("placeholder");
+    texto.textContent = "Gerando narrativa...";
+
+    try {
+      const sample = await claude.use("sample");
+      if (!sample) {
+        texto.textContent = "Geração por IA indisponível neste visualizador.";
+        return;
+      }
+
+      const linhas = recorte.map(d =>
+        `${d.periodo}: variação mensal ${d.variacao_mensal}%, acumulado 12m ${d.variacao_acum_12m}%, margem absorvida lag1 ${d.margem_absorvida_lag1}%`
+      ).join("\n");
+
+      const prompt =
+        `Você é um analista econômico. Abaixo estão dados mensais do IPCA de alimentação fora do domicílio no Brasil, entre ${inicio} e ${fim}:\n\n${linhas}\n\n` +
+        "Escreva uma narrativa analítica em português, de 3 a 4 frases, explicando o comportamento da inflação nesse período. " +
+        "Cite eventos econômicos reais quando relevante (ex: pandemia, crise cambial, políticas de juros).";
+
+      texto.classList.remove("placeholder");
+      const result = await sample(prompt, {
+        onText: ({ text }) => { texto.textContent = text; }
+      });
+      texto.textContent = result.text;
+    } catch (err) {
+      texto.textContent = "Erro ao gerar narrativa: " + (err.message || err.code || "desconhecido");
+      texto.classList.add("placeholder");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
+main();
+</script>
