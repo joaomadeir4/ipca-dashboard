@@ -18,12 +18,12 @@ inflacao/
 ├── etl_ingestao_inflacao.ipynb  # notebook completo do pipeline (ingestão + tratamento + carga)
 └── ipca-dashboard/
     ├── main.py                      # API FastAPI
+    ├── gerar_narrativas.py          # script que pré-gera os insights mensais (static/narrativas.json)
     ├── requirements.txt
-    ├── .env                         # ANTHROPIC_API_KEY (não versionado)
-    ├── <service-account>.json       # credencial BigQuery (não versionado)
-    ├── narrativas_por_ano.json      # referência: narrativas pré-geradas por ano (usadas no artifact estático)
+    ├── .env                         # ANTHROPIC_API_KEY, GOOGLE_CREDENTIALS_JSON (não versionado)
     └── static/
         ├── index.html                # dashboard completo (consome a API local)
+        ├── narrativas.json           # insight mensal pré-gerado (usado pelo artifact estático)
         └── snapshot_artifact.html    # versão standalone publicada como Claude Artifact
 ```
 
@@ -121,22 +121,13 @@ Ordem das seções:
 
 ## Versão estática (`static/snapshot_artifact.html`)
 
-Publicada como [Claude Artifact](https://claude.ai/code/artifacts) para compartilhamento sem precisar rodar o backend. Diferenças em relação ao dashboard local:
+Publicada como [Claude Artifact](https://claude.ai/code/artifacts) para compartilhamento sem precisar rodar o backend. O projeto original usa IA generativa em tempo real via API da Anthropic para gerar narrativas sob demanda, para qualquer intervalo de meses (ver `POST /narrativa` acima). Por questão de custo de API, essa versão pública é um exemplo estático que simula esse comportamento:
 
-- **Dados congelados**: snapshot da tabela BigQuery embutido diretamente no HTML, sem fetch
-- **Narrativa via `sample`**: em vez de chamar um backend com API key própria, usa a capability `sample` do runtime de Artifacts, que gera texto com Claude diretamente no navegador sem expor credenciais. O uso é debitado da conta claude.ai de quem está vendo a página, não do dono do projeto
+- **Dados congelados**: snapshot da tabela BigQuery embutido diretamente no HTML, sem fetch.
+- **Insights mensais pré-gerados**: `gerar_narrativas.py` roda uma vez, gera um insight curto por mês via API (mesmo modelo, `claude-sonnet-5`) e salva em `static/narrativas.json`, embutido no HTML.
+- **Consolidação real via `sample`**: ao selecionar um intervalo e clicar em "Gerar narrativa", a capability `sample` do runtime de Artifacts recebe os insights mensais daquele intervalo e produz, ao vivo, um parágrafo coerente cobrindo o período inteiro — a consolidação acontece a cada clique, não é texto fixo. Isso evita expor uma chave de API no HTML público, e o uso é debitado da conta claude.ai de quem está vendo a página, não do dono do projeto.
 
-Um Artifact estático não pode chamar a API da Anthropic com uma chave própria sem expô-la publicamente no HTML. `sample` resolve isso mantendo geração real sem esse risco.
-
-**Limitação conhecida**: artifacts que declaram a capability `sample` não podem ser compartilhados publicamente pela plataforma Claude — o compartilhamento fica restrito à organização/workspace de quem publicou. Isso significa que essa versão não serve, hoje, para um link público de portfólio; o repositório e o dashboard local continuam sendo a referência para demonstrar o projeto a terceiros.
-
-## Sobre a versão estática
-
-O projeto original usa IA generativa em tempo real via API da Anthropic para gerar narrativas analíticas sob demanda, para qualquer intervalo de meses selecionado (ver `POST /narrativa` acima). Por questão de custo de API, a versão pública disponibilizada como Artifact é um exemplo estático que simula esse comportamento:
-
-- As narrativas mensais foram pré-geradas via API (`gerar_narrativas.py`) e salvas em `static/narrativas.json`, usando o mesmo modelo (`claude-sonnet-5`), um insight curto por mês.
-- O comportamento de consolidação de período é real: ao selecionar um intervalo e clicar em "Gerar narrativa", o `sample()` do runtime do Artifact recebe os insights mensais pré-gerados daquele intervalo e produz, ao vivo, um parágrafo coerente cobrindo o período inteiro. Não é um texto fixo por período — a consolidação acontece a cada clique.
-- O código completo da versão com API própria (geração livre, sem pré-processamento) está disponível neste repositório, em `main.py`.
+**Limitação conhecida**: artifacts que declaram a capability `sample` não podem ser compartilhados publicamente pela plataforma Claude — o compartilhamento fica restrito à organização/workspace de quem publicou. Essa versão não serve, hoje, para um link público de portfólio; o repositório e o dashboard local continuam sendo a referência para demonstrar o projeto a terceiros.
 
 ## Notas de arquitetura
 
